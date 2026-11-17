@@ -9,12 +9,15 @@ import {
   layerWindowsRegistry,
   ManagedPolicyFileError,
   readManagedPolicy,
+  readManagedPolicyFile,
   WindowsRegistry,
 } from "@t3tools/shared/managedPolicyFile";
+import * as Config from "effect/Config";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import { ChildProcessSpawner } from "effect/process";
 
@@ -34,9 +37,29 @@ export class DesktopManagedPolicy extends Context.Service<
 export const layer = Layer.effect(
   DesktopManagedPolicy,
   Effect.gen(function* () {
-    const { platform } = yield* DesktopEnvironment.DesktopEnvironment;
+    const { platform, isPackaged } = yield* DesktopEnvironment.DesktopEnvironment;
+    // A user-settable override would bypass the policy, so packaged builds ignore it; isPackaged
+    // is the one signal an environment variable cannot change.
+    const devPath = isPackaged
+      ? Option.none<string>()
+      : yield* Config.option(Config.String("T3CODE_DEV_MANAGED_POLICY_PATH")).pipe(
+          Effect.orElseSucceed(() => Option.none<string>()),
+        );
+    const readDevPolicy = Effect.fn("DesktopManagedPolicy.readDevPolicy")(function* (path: string) {
+      const document = yield* readManagedPolicyFile(path);
+      if (document === undefined) {
+        yield* Effect.logWarning("The dev managed policy file is missing; no policy applies.", {
+          path,
+        });
+        return undefined;
+      }
+      return { source: path, document };
+    });
     const read = yield* Effect.cached(
-      readManagedPolicy(platform).pipe(
+      Option.match(devPath, {
+        onSome: readDevPolicy,
+        onNone: () => readManagedPolicy(platform),
+      }).pipe(
         Effect.provideService(FileSystem.FileSystem, yield* FileSystem.FileSystem),
         Effect.provideService(
           ChildProcessSpawner.ChildProcessSpawner,

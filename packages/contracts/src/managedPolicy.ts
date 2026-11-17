@@ -1,7 +1,7 @@
 import * as Schema from "effect/Schema";
 import * as Struct from "effect/Struct";
 
-import { TrimmedNonEmptyString } from "./baseSchemas.ts";
+import { PortSchema, TrimmedNonEmptyString } from "./baseSchemas.ts";
 import { ProviderDriverKind, ProviderInstanceEnvironmentVariableName } from "./providerInstance.ts";
 import { isRuntimeModeAbove, RuntimeMode } from "./providerPolicy.ts";
 
@@ -86,6 +86,43 @@ export const ManagedPolicyLimits = Schema.Struct({
 });
 export type ManagedPolicyLimits = typeof ManagedPolicyLimits.Type;
 
+/** Consumed per user for good, whatever the policy later says; a changed host needs a new id. */
+const ManagedSeedId = TrimmedNonEmptyString.check(
+  Schema.makeFilter((value: string) => /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u.test(value), {
+    expected: "1-128 letters, digits, '.', '_' or '-', starting with a letter or digit",
+  }),
+);
+
+// A leading "-" would reach ssh as an option; the user and port have their own fields.
+const ManagedSshHost = TrimmedNonEmptyString.check(
+  Schema.makeFilter((value: string) => /^[^\s@[\]:/-][^\s@[\]:/]*$/u.test(value), {
+    expected: "an SSH host or alias without a user, port, path, brackets, or spaces",
+  }),
+);
+const ManagedSshUser = TrimmedNonEmptyString.check(
+  Schema.makeFilter((value: string) => /^[^\s@:]+$/u.test(value), {
+    expected: "an SSH user name without spaces, '@' or ':'",
+  }),
+);
+
+const ManagedSeedSshEnvironment = Schema.Struct({
+  id: ManagedSeedId,
+  label: TrimmedNonEmptyString,
+  host: ManagedSshHost,
+  user: Schema.optionalKey(ManagedSshUser),
+  port: Schema.optionalKey(PortSchema),
+});
+
+/** Unlike a `settings` default, a seed the user removes stays removed. */
+const ManagedPolicySeed = Schema.Struct({
+  sshEnvironments: Schema.NonEmptyArray(ManagedSeedSshEnvironment).check(
+    Schema.makeFilter(
+      (environments) => new Set(environments.map(({ id }) => id)).size === environments.length,
+      { expected: "SSH environments with distinct ids" },
+    ),
+  ),
+});
+
 /** The limits clients see: what the server enforces, which can be broader than the file says. */
 export const ManagedPolicySummaryLimits = Schema.Struct({
   maxRuntimeMode: Schema.optionalKey(RuntimeMode),
@@ -127,6 +164,7 @@ export const ManagedPolicyDocument = Schema.Struct({
   supportUrl: Schema.optionalKey(TrimmedNonEmptyString),
   settings: Schema.optionalKey(Schema.Record(Schema.String, ManagedPolicySetting)),
   limits: Schema.optionalKey(ManagedPolicyLimits),
+  seed: Schema.optionalKey(ManagedPolicySeed),
 });
 export type ManagedPolicyDocument = typeof ManagedPolicyDocument.Type;
 

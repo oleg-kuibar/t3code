@@ -37,6 +37,10 @@ const describePolicy = (
   if (document.limits !== undefined) {
     lines.push("", "Limits:", JSON.stringify(document.limits, null, 2));
   }
+  if (document.seed !== undefined) {
+    const ids = document.seed.sshEnvironments.map(({ id }) => id);
+    lines.push("", `seed.sshEnvironments (offered once per user): ${ids.join(", ")}`);
+  }
   return `${lines.join("\n")}\n`;
 };
 
