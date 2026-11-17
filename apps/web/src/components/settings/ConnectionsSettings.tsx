@@ -142,6 +142,7 @@ import {
   SavedBackendListRow,
 } from "./SavedEnvironmentRows";
 import { AddEnvironmentDialog } from "./AddEnvironmentDialog";
+import { ManagedSeedRows } from "./ManagedSeedRows";
 import {
   type ConnectDeviceRevokeRequest,
   RevokeConnectDeviceDialog,
@@ -1712,6 +1713,7 @@ function ConnectionsSettingsContent({
             }}
           />
         ))}
+        <ManagedSeedRows />
         <CloudRemoteEnvironmentRows
           primaryEnvironmentId={primaryEnvironmentId}
           savedEnvironments={savedEnvironments}
