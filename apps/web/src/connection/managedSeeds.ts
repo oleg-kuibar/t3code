@@ -35,28 +35,18 @@ export class ManagedSeedsError extends Schema.TaggedError<ManagedSeedsError>()(
   }
 }
 
-/**
- * The SSH environments an organization's policy offers this user once. An offer stays listed until
- * the user saves its host, by connecting it or by hand, or dismisses it. Either consumes it for
- * good, so removing the saved environment later keeps it removed.
- */
+/** An offer stays until its host is saved or it is dismissed; either consumes it for good. */
 export class ManagedSeeds extends Context.Service<
   ManagedSeeds,
   {
-    /** Seeds for the Environments list: not consumed, and no saved SSH route reaches their host. */
     readonly offers: SubscriptionRef.SubscriptionRef<ReadonlyArray<DesktopManagedSeed>>;
     readonly dismiss: (seedId: string) => Effect.Effect<void, ManagedSeedsError>;
-    /**
-     * Consumes every pending seed one of the environment's SSH routes reaches. Run before removing
-     * it, so a consume that failed when it was saved cannot bring the offer back.
-     */
     readonly consumeSavedBy: (
       environmentId: EnvironmentId,
     ) => Effect.Effect<void, ManagedSeedsError>;
   }
 >()("@t3tools/web/connection/managedSeeds") {}
 
-/** Same alias or host name, with no conflicting user or port; ssh's default port is 22. */
 export function isSameSshHost(
   seed: DesktopSshEnvironmentTarget,
   saved: DesktopSshEnvironmentTarget,
@@ -68,7 +58,6 @@ export function isSameSshHost(
   );
 }
 
-/** Splits pending seeds by whether any saved SSH route, primary or alternate, reaches their host. */
 export function partitionSeeds(
   pending: ReadonlyArray<DesktopManagedSeed>,
   entries: Iterable<ConnectionCatalogEntry>,
@@ -92,10 +81,8 @@ export function partitionSeeds(
 
 const make = Effect.gen(function* () {
   const registry = yield* EnvironmentRegistry.EnvironmentRegistry;
-  // Without these bridge methods (the browser, an older desktop app) nothing is ever offered.
   const getManagedSeeds = window.desktopBridge?.getManagedSeeds ?? (async () => []);
   const consumeManagedSeed = window.desktopBridge?.consumeManagedSeed ?? (async () => {});
-  // Desktop main owns the ledger, so this copy is only ever replaced from it, never edited.
   const pending = yield* SubscriptionRef.make<ReadonlyArray<DesktopManagedSeed>>([]);
   const offers = yield* SubscriptionRef.make<ReadonlyArray<DesktopManagedSeed>>([]);
 
@@ -136,8 +123,7 @@ const make = Effect.gen(function* () {
   });
 
   yield* reload.pipe(Effect.forkScoped);
-  // The one place a saved host consumes a seed: connecting the offer, adding the same host by
-  // hand, and a save that landed just before a crash all look the same here.
+  // The only consume-on-save path, for a connected offer, a manual add, and a pre-crash save.
   yield* Stream.zipLatest(
     SubscriptionRef.changes(pending),
     SubscriptionRef.changes(registry.entries),

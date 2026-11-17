@@ -52,7 +52,6 @@ const layerFor = (
     Layer.provideMerge(NodeServices.layer),
   );
 
-/** Each call is a fresh app launch over the same T3 home. */
 const launch = <A, E>(
   homeDirectory: string,
   managedPolicy: ManagedPolicyDocument | ManagedPolicyFileError | undefined,

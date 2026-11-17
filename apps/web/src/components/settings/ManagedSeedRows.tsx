@@ -21,7 +21,6 @@ type OfferState =
   | { readonly phase: "connecting" | "dismissing" }
   | { readonly phase: "failed"; readonly error: string };
 
-/** Environments the organization's policy offers that this user has not acted on yet. */
 export function ManagedSeedRows(): ReactNode {
   const offers = useAtomValue(managedSeeds.offersValueAtom);
   const connectSshEnvironment = useAtomCommand(connectSshEnvironmentAtom, {
@@ -37,7 +36,7 @@ export function ManagedSeedRows(): ReactNode {
       return next;
     });
 
-  // Nothing records the seed here: once the environment is saved, ManagedSeeds sees its host.
+  // No consume here: ManagedSeeds consumes the seed once the saved host appears.
   const connect = async (seed: DesktopManagedSeed) => {
     setOfferState(seed.seedId, { phase: "connecting" });
     const result = await connectSshEnvironment({ target: seed.target, label: seed.label });

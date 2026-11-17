@@ -1,6 +1,5 @@
 /**
- * DesktopManagedSeeds - the SSH environments the managed policy offers this user once, and the
- * ledger of the ones they already acted on. The only writer of `managed-seeds.json`.
+ * DesktopManagedSeeds - the only writer of `managed-seeds.json`.
  *
  * @module DesktopManagedSeeds
  */
@@ -19,7 +18,7 @@ import * as DesktopManagedPolicy from "./DesktopManagedPolicy.ts";
 
 const LEDGER_FILE = "managed-seeds.json";
 
-/** Seed ids this user acted on. It only ever grows. */
+/** Append-only: a consumed id is never removed. */
 const SeedLedgerJson = Schema.fromJsonString(
   Schema.Struct({
     version: Schema.Literal(1),
@@ -45,17 +44,12 @@ export class DesktopManagedSeedLedgerError extends Schema.TaggedError<DesktopMan
 export class DesktopManagedSeeds extends Context.Service<
   DesktopManagedSeeds,
   {
-    /**
-     * The policy's seeds this user has not consumed. Empty without a usable policy, and empty
-     * when the ledger cannot be read: offering again what the user removed is worse than nothing.
-     */
+    /** Empty when the ledger is unreadable: re-offering a removed seed is worse than none. */
     readonly pending: Effect.Effect<ReadonlyArray<DesktopManagedSeed>>;
-    /** Never offer `seedId` again. Idempotent; an id the policy does not offer is ignored. */
     readonly consume: (seedId: string) => Effect.Effect<void, DesktopManagedSeedLedgerError>;
   }
 >()("@t3tools/desktop/app/DesktopManagedSeeds") {}
 
-/** Each seed as the target a manual `user@host:port` add saves, so it connects the same way. */
 function pendingSeeds(
   document: ManagedPolicyDocument,
   consumed: ReadonlySet<string>,
@@ -96,7 +90,6 @@ const make = Effect.gen(function* () {
     }),
   );
 
-  // A missing ledger is a new user; an unreadable one is an error, never read as empty.
   const readLedger = fileSystem.readFileString(ledgerPath).pipe(
     Effect.catch((cause) =>
       cause.reason._tag === "NotFound" ? Effect.undefined : Effect.fail(ledgerError("read")(cause)),

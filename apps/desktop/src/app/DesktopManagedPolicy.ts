@@ -38,9 +38,8 @@ export const layer = Layer.effect(
   DesktopManagedPolicy,
   Effect.gen(function* () {
     const { platform, isPackaged } = yield* DesktopEnvironment.DesktopEnvironment;
-    // Source builds may read a policy from elsewhere so it can be tried without admin rights, as
-    // the server does. Packaged builds never do: an override a user can set is a way around the
-    // policy, and isPackaged is the one signal an environment variable cannot change.
+    // A user-settable override would bypass the policy, so packaged builds ignore it; isPackaged
+    // is the one signal an environment variable cannot change.
     const devPath = isPackaged
       ? Option.none<string>()
       : yield* Config.option(Config.String("T3CODE_DEV_MANAGED_POLICY_PATH")).pipe(

@@ -86,10 +86,7 @@ export const ManagedPolicyLimits = Schema.Struct({
 });
 export type ManagedPolicyLimits = typeof ManagedPolicyLimits.Type;
 
-/**
- * Names one seed for good: once a user has acted on it, it is never offered to them again,
- * whatever the policy later says under it. A changed host needs a new id.
- */
+/** Consumed per user for good, whatever the policy later says; a changed host needs a new id. */
 const ManagedSeedId = TrimmedNonEmptyString.check(
   Schema.makeFilter((value: string) => /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u.test(value), {
     expected: "1-128 letters, digits, '.', '_' or '-', starting with a letter or digit",
@@ -108,23 +105,15 @@ const ManagedSshUser = TrimmedNonEmptyString.check(
   }),
 );
 
-/**
- * One SSH build box offered to each user. It has no field for a key, password, or token, and an
- * unknown key refuses the policy, though nothing stops a secret typed into `label`.
- */
 const ManagedSeedSshEnvironment = Schema.Struct({
   id: ManagedSeedId,
-  /** The name the environment is saved under. */
   label: TrimmedNonEmptyString,
   host: ManagedSshHost,
   user: Schema.optionalKey(ManagedSshUser),
   port: Schema.optionalKey(PortSchema),
 });
 
-/**
- * What the policy offers each user once instead of enforcing. Unlike a `settings` default, an
- * entry the user removes stays removed.
- */
+/** Unlike a `settings` default, a seed the user removes stays removed. */
 const ManagedPolicySeed = Schema.Struct({
   sshEnvironments: Schema.NonEmptyArray(ManagedSeedSshEnvironment).check(
     Schema.makeFilter(

@@ -11,7 +11,7 @@ const catalog = createEnvironmentCatalogAtoms(connectionAtomRuntime);
 
 export const environmentCatalog = {
   ...catalog,
-  // A policy seed this environment saved is consumed first, so removing it never re-offers it.
+  // Consume first, so a consume that failed at save time cannot re-offer the removed seed.
   remove: createRuntimeCommand(connectionAtomRuntime, {
     label: "environment-catalog:remove",
     concurrency: { mode: "serial", key: () => "environment-catalog" },
