@@ -1,7 +1,7 @@
 import * as Schema from "effect/Schema";
 import * as Struct from "effect/Struct";
 
-import { TrimmedNonEmptyString } from "./baseSchemas.ts";
+import { PortSchema, TrimmedNonEmptyString } from "./baseSchemas.ts";
 import { ProviderDriverKind, ProviderInstanceEnvironmentVariableName } from "./providerInstance.ts";
 import { isRuntimeModeAbove, RuntimeMode } from "./providerPolicy.ts";
 
@@ -86,6 +86,54 @@ export const ManagedPolicyLimits = Schema.Struct({
 });
 export type ManagedPolicyLimits = typeof ManagedPolicyLimits.Type;
 
+/**
+ * Names one seed for good: once a user has acted on it, it is never offered to them again,
+ * whatever the policy later says under it. A changed host needs a new id.
+ */
+const ManagedSeedId = TrimmedNonEmptyString.check(
+  Schema.makeFilter((value: string) => /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u.test(value), {
+    expected: "1-128 letters, digits, '.', '_' or '-', starting with a letter or digit",
+  }),
+);
+
+// A leading "-" would reach ssh as an option; the user and port have their own fields.
+const ManagedSshHost = TrimmedNonEmptyString.check(
+  Schema.makeFilter((value: string) => /^[^\s@[\]-][^\s@[\]]*$/u.test(value), {
+    expected: "an SSH host or alias without a user, brackets, or spaces",
+  }),
+);
+const ManagedSshUser = TrimmedNonEmptyString.check(
+  Schema.makeFilter((value: string) => /^[^\s@:]+$/u.test(value), {
+    expected: "an SSH user name without spaces, '@' or ':'",
+  }),
+);
+
+/**
+ * One SSH build box offered to each user. It has no field for a key, password, or token, and an
+ * unknown key refuses the policy, though nothing stops a secret typed into `label`.
+ */
+const ManagedSeedSshEnvironment = Schema.Struct({
+  id: ManagedSeedId,
+  /** The name the environment is saved under. */
+  label: TrimmedNonEmptyString,
+  host: ManagedSshHost,
+  user: Schema.optionalKey(ManagedSshUser),
+  port: Schema.optionalKey(PortSchema),
+});
+
+/**
+ * What the policy offers each user once instead of enforcing. Unlike a `settings` default, an
+ * entry the user removes stays removed.
+ */
+const ManagedPolicySeed = Schema.Struct({
+  sshEnvironments: Schema.NonEmptyArray(ManagedSeedSshEnvironment).check(
+    Schema.makeFilter(
+      (environments) => new Set(environments.map(({ id }) => id)).size === environments.length,
+      { expected: "SSH environments with distinct ids" },
+    ),
+  ),
+});
+
 /** The limits clients see: what the server enforces, which can be broader than the file says. */
 export const ManagedPolicySummaryLimits = Schema.Struct({
   maxRuntimeMode: Schema.optionalKey(RuntimeMode),
@@ -127,6 +175,7 @@ export const ManagedPolicyDocument = Schema.Struct({
   supportUrl: Schema.optionalKey(TrimmedNonEmptyString),
   settings: Schema.optionalKey(Schema.Record(Schema.String, ManagedPolicySetting)),
   limits: Schema.optionalKey(ManagedPolicyLimits),
+  seed: Schema.optionalKey(ManagedPolicySeed),
 });
 export type ManagedPolicyDocument = typeof ManagedPolicyDocument.Type;
 
