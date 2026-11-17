@@ -98,8 +98,8 @@ const ManagedSeedId = TrimmedNonEmptyString.check(
 
 // A leading "-" would reach ssh as an option; the user and port have their own fields.
 const ManagedSshHost = TrimmedNonEmptyString.check(
-  Schema.makeFilter((value: string) => /^[^\s@[\]-][^\s@[\]]*$/u.test(value), {
-    expected: "an SSH host or alias without a user, brackets, or spaces",
+  Schema.makeFilter((value: string) => /^[^\s@[\]:/-][^\s@[\]:/]*$/u.test(value), {
+    expected: "an SSH host or alias without a user, port, path, brackets, or spaces",
   }),
 );
 const ManagedSshUser = TrimmedNonEmptyString.check(

@@ -196,6 +196,8 @@ describe("readManagedPolicy", () => {
         [[box, { ...box, label: "Acme build box 2" }], "distinct ids"],
         [[{ ...box, host: "-oProxyCommand=calc.exe" }], '["sshEnvironments"][0]["host"]'],
         [[{ ...box, host: "dev@build1.acme.internal" }], '["sshEnvironments"][0]["host"]'],
+        [[{ ...box, host: "build1.acme.internal:2222" }], '["sshEnvironments"][0]["host"]'],
+        [[{ ...box, host: "ssh://build1.acme.internal" }], '["sshEnvironments"][0]["host"]'],
         [[{ ...box, id: "../acme" }], '["sshEnvironments"][0]["id"]'],
         [[{ ...box, port: 70_000 }], '["sshEnvironments"][0]["port"]'],
         [[], '["sshEnvironments"]'],
