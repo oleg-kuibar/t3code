@@ -165,6 +165,48 @@ describe("readManagedPolicy", () => {
     }),
   );
 
+  it.effect("reads seeded SSH environments, and refuses seeds that could carry more", () =>
+    Effect.gen(function* () {
+      const seed = (sshEnvironments: ReadonlyArray<object>) =>
+        readManagedPolicy("linux").pipe(
+          Effect.map((found): unknown => found?.document.seed),
+          Effect.catchTags({
+            ManagedPolicyFileError: (error) => Effect.succeed(`error: ${error.reason}`),
+          }),
+          Effect.provide(
+            machine(
+              {
+                [managedPolicyPath("linux")]: JSON.stringify({
+                  ...JSON.parse(policy),
+                  seed: { sshEnvironments },
+                }),
+              },
+              {},
+              {},
+            ),
+          ),
+        );
+      const box = { id: "acme.build-1", label: "Acme build box", host: "build1.acme.internal" };
+
+      assert.deepStrictEqual(yield* seed([{ ...box, user: "dev", port: 22 }]), {
+        sshEnvironments: [{ ...box, user: "dev", port: 22 }],
+      });
+      for (const [environments, reason] of [
+        [[{ ...box, password: "hunter2" }], '["sshEnvironments"][0]["password"]'],
+        [[box, { ...box, label: "Acme build box 2" }], "distinct ids"],
+        [[{ ...box, host: "-oProxyCommand=calc.exe" }], '["sshEnvironments"][0]["host"]'],
+        [[{ ...box, host: "dev@build1.acme.internal" }], '["sshEnvironments"][0]["host"]'],
+        [[{ ...box, host: "build1.acme.internal:2222" }], '["sshEnvironments"][0]["host"]'],
+        [[{ ...box, host: "ssh://build1.acme.internal" }], '["sshEnvironments"][0]["host"]'],
+        [[{ ...box, id: "../acme" }], '["sshEnvironments"][0]["id"]'],
+        [[{ ...box, port: 70_000 }], '["sshEnvironments"][0]["port"]'],
+        [[], '["sshEnvironments"]'],
+      ] as const) {
+        assert.include(yield* seed(environments), reason);
+      }
+    }),
+  );
+
   it.effect(
     "reads a Policy value of JSON from the registry, and treats only an absent key as none",
     () =>

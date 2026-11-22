@@ -402,6 +402,16 @@ export const DesktopSshEnvironmentTargetSchema = Schema.Struct({
 });
 export type DesktopSshEnvironmentTarget = typeof DesktopSshEnvironmentTargetSchema.Type;
 
+/** Not an environment until connected: the policy cannot know the server's environment id. */
+export const DesktopManagedSeedSchema = Schema.Struct({
+  seedId: Schema.String,
+  label: Schema.String,
+  organization: Schema.String,
+  /** What a manual `user@host:port` add would save. */
+  target: DesktopSshEnvironmentTargetSchema,
+});
+export type DesktopManagedSeed = typeof DesktopManagedSeedSchema.Type;
+
 export type DesktopSshHostSource = "ssh-config" | "known-hosts";
 export const DesktopSshHostSourceSchema = Schema.Literals(["ssh-config", "known-hosts"]);
 
@@ -1093,6 +1103,10 @@ export interface DesktopBridge {
   setClientSettings: (settings: ClientSettings) => Promise<void>;
   getConnectionCatalog: () => Promise<string | null>;
   setConnectionCatalog: (catalog: string) => Promise<boolean>;
+  /** Empty without a usable policy or seed ledger. */
+  getManagedSeeds?: () => Promise<readonly DesktopManagedSeed[]>;
+  /** Never offer `seedId` to this user again. Idempotent; ids the policy does not offer are ignored. */
+  consumeManagedSeed?: (seedId: string) => Promise<void>;
   discoverSshHosts: () => Promise<readonly DesktopDiscoveredSshHost[]>;
   resolveSshHost: (alias: string) => Promise<DesktopSshEnvironmentTarget>;
   requestSnapShotPermissions: (includeAccessibility: boolean) => Promise<void>;

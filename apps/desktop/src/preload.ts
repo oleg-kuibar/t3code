@@ -185,6 +185,9 @@ contextBridge.exposeInMainWorld("desktopBridge", {
   getConnectionCatalog: () => ipcRenderer.invoke(IpcChannels.GET_CONNECTION_CATALOG_CHANNEL),
   setConnectionCatalog: (catalog) =>
     ipcRenderer.invoke(IpcChannels.SET_CONNECTION_CATALOG_CHANNEL, catalog),
+  getManagedSeeds: () => ipcRenderer.invoke(IpcChannels.GET_MANAGED_SEEDS_CHANNEL),
+  consumeManagedSeed: (seedId) =>
+    ipcRenderer.invoke(IpcChannels.CONSUME_MANAGED_SEED_CHANNEL, seedId),
   discoverSshHosts: () => ipcRenderer.invoke(IpcChannels.DISCOVER_SSH_HOSTS_CHANNEL),
   resolveSshHost: (alias) => ipcRenderer.invoke(IpcChannels.RESOLVE_SSH_HOST_CHANNEL, alias),
   ensureSshEnvironment: async (target, options) =>
